@@ -31,7 +31,7 @@ jobs:
       - name: Install deps and build angular app
         run: |
           cd client
-          nmp install
+          npm install
           ng build
 
       - name: Set up .NET Core
