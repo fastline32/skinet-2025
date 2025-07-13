@@ -12,11 +12,27 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      PROJECT_PATH: ./API
     permissions:
       contents: read #This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Angular cli
+        run: npm install -g @angular/cli@18
+
+      - name: Install deps and build angular app
+        run: |
+          cd client
+          nmp install
+          ng build
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
