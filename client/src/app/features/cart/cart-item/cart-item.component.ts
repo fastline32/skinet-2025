@@ -21,9 +21,10 @@ import { CartService } from '../../../core/services/cart.service';
 export class CartItemComponent {
   item = input.required<CartItem>();
   cartService = inject(CartService);
+  
 
   incrementQuantity() {
-    this.cartService.addItemToCart(this.item());
+      this.cartService.addItemToCart(this.item());
   }
 
   decrementQuantity() {
@@ -32,5 +33,14 @@ export class CartItemComponent {
 
   removeItemFromCart() {
     this.cartService.removeItemFromCart(this.item().productId, this.item().quantity);
+  }
+
+  isDisabled() {
+    const quantity =  this.cartService.cart()?.items.find(x => x.productId === this.item().productId)?.quantity;
+    if (quantity === this.item().quantity) {
+      return true;
+    } else {
+      return false;
+    }
   }
 }

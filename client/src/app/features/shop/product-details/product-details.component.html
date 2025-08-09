@@ -28,6 +28,15 @@
                     <div class="flex items-center align-middle mb-3">Quantity in stock: {{product.quantityInStock}}</div>
                     <mat-divider></mat-divider>
                     <p class="mt-6 text-gray-500">{{product.description}}</p>
+                    <mat-divider class="mt-6"></mat-divider>
+                    <div class="flex gap-4 mt-6">
+                        <button
+                            *appIsAdmin
+                            (click)="openEditDialog(product)"
+                            mat-flat-button class="match-input-height">
+                            {{"Update Product"}}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

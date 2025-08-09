@@ -17,7 +17,7 @@ import { AdminService } from '../../../core/services/admin.service';
     DatePipe,
     CurrencyPipe,
     AddressPipe,
-    PaymentCardPipe
+    PaymentCardPipe,
   ],
   templateUrl: './order-detailed.component.html',
   styleUrl: './order-detailed.component.scss'
