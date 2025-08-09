@@ -102,6 +102,7 @@ async removeItemFromCart(productId: number, quantity = 1) {
   }
 
   private addOrUpdateItem(items: CartItem[], item: CartItem, quantity: number): CartItem[] {
+    const productQuantity = items.find(x => x.productId ===item.productId)?.quantity
     const index = items.findIndex(x => x.productId === item.productId);
     if (index === -1) {
       item.quantity = quantity;
