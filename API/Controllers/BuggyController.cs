@@ -39,6 +39,21 @@ namespace API.Controllers
             return Ok();
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin-secret")]
+        public IActionResult GetAdminSecret()
+        {
+            var name = User.FindFirst(ClaimTypes.Name)?.Value;
+            var id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var isAdmin = User.IsInRole("Admin");
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            return Ok(new
+            {
+                name,id,isAdmin,role
+            });
+        }
+
         [Authorize]
         [HttpGet("secret")]
         public IActionResult GetSecret()
@@ -48,5 +63,6 @@ namespace API.Controllers
 
             return Ok("Hello " + name + " with the id " + id);
         }
+
     }
 }

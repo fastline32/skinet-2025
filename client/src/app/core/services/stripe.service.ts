@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ConfirmationToken, loadStripe, Stripe, StripeAddressElement, StripeAddressElementOptions, StripeElements, StripePaymentElement } from '@stripe/stripe-js'
+import {ConfirmationToken, loadStripe, Stripe, StripeAddressElement, StripeAddressElementOptions, StripeElements, StripePaymentElement} from '@stripe/stripe-js';
 import { environment } from '../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { CartService } from './cart.service';
@@ -11,10 +11,10 @@ import { AccountService } from './account.service';
   providedIn: 'root'
 })
 export class StripeService {
-  private http = inject(HttpClient);
   baseUrl = environment.apiURL;
   private cartService = inject(CartService);
   private accountService = inject(AccountService);
+  private http = inject(HttpClient);
   private stripePromise: Promise<Stripe | null>;
   private elements?: StripeElements;
   private addressElement?: StripeAddressElement;
@@ -29,43 +29,44 @@ export class StripeService {
   }
 
   async initializeElements() {
-    if(!this.elements) {
+    if (!this.elements) {
       const stripe = await this.getStripeInstance();
-      if(stripe) {
+      if (stripe) {
         const cart = await firstValueFrom(this.createOrUpdatePaymentIntent());
-        this.elements = stripe.elements({clientSecret: cart.clientSecret, appearance: {labels: 'floating'}})
+        this.elements = stripe.elements(
+          {clientSecret: cart.clientSecret, appearance: {labels: 'floating'}})
       } else {
-        throw new Error('Stripe has not been loaded')
+        throw new Error('Stripe has not been loaded');
       }
     }
     return this.elements;
   }
 
   async createPaymentElement() {
-    if(!this.paymentElement) {
+    if (!this.paymentElement) {
       const elements = await this.initializeElements();
-      if(elements) {
+      if (elements) {
         this.paymentElement = elements.create('payment');
       } else {
-        throw new Error('Elements instance has not been initialized')
+        throw new Error('Elements instance has not been initialized');
       }
     }
     return this.paymentElement;
   }
 
   async createAddressElement() {
-    if(!this.addressElement) {
+    if (!this.addressElement) {
       const elements = await this.initializeElements();
       if (elements) {
         const user = this.accountService.currentUser();
         let defaultValues: StripeAddressElementOptions['defaultValues'] = {};
 
-        if(user) {
+        if (user) {
           defaultValues.name = user.firstName + ' ' + user.lastName;
         }
 
-        if(user?.address) {
-          defaultValues.address = {
+        if (user?.address) {
+          defaultValues.address  = {
             line1: user.address.line1,
             line2: user.address.line2,
             city: user.address.city,
@@ -91,13 +92,11 @@ export class StripeService {
     const stripe = await this.getStripeInstance();
     const elements = await this.initializeElements();
     const result = await elements.submit();
-
-    if(result.error) throw new Error(result.error.message);
-    
-    if(stripe) {
+    if (result.error) throw new Error(result.error.message);
+    if (stripe) {
       return await stripe.createConfirmationToken({elements});
     } else {
-      throw new Error ('Stripe not available')
+      throw new Error('Stripe not available');
     }
   }
 
@@ -105,12 +104,11 @@ export class StripeService {
     const stripe = await this.getStripeInstance();
     const elements = await this.initializeElements();
     const result = await elements.submit();
-
-    if(result.error) throw new Error(result.error.message);
+    if (result.error) throw new Error(result.error.message);
 
     const clientSecret = this.cartService.cart()?.clientSecret;
 
-    if(stripe && clientSecret) {
+    if (stripe && clientSecret) {
       return await stripe.confirmPayment({
         clientSecret: clientSecret,
         confirmParams: {
@@ -119,20 +117,22 @@ export class StripeService {
         redirect: 'if_required'
       })
     } else {
-      throw new Error ('Unable to load Stripe');
+      throw new Error('Unable to load stripe');
     }
   }
 
   createOrUpdatePaymentIntent() {
     const cart = this.cartService.cart();
-    if(!cart) throw new Error('Problem with cart');
-
+    const hasClientSecret = !!cart?.clientSecret;
+    if (!cart) throw new Error('Problem with cart');
     return this.http.post<Cart>(this.baseUrl + 'payment/' + cart.id, {}).pipe(
-      map(cart => {
-          this.cartService.setCart(cart);
+      map(async cart => {
+        if (!hasClientSecret) {
+          await firstValueFrom(this.cartService.setCart(cart));
           return cart;
         }
-      )
+        return cart;
+      })
     )
   }
 
@@ -141,4 +141,5 @@ export class StripeService {
     this.addressElement = undefined;
     this.paymentElement = undefined;
   }
+
 }

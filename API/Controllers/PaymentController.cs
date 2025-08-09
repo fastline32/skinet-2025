@@ -37,6 +37,9 @@ public class PaymentController(IPaymentService paymentService,
     [HttpPost("webhook")]
     public async Task<IActionResult> StripeWebhook()
     {
+        //If not working to remove
+        HttpContext.Request.EnableBuffering();
+
         var json = await new StreamReader(Request.Body).ReadToEndAsync();
 
         try
