@@ -1,5 +1,6 @@
 using API.DTOs;
 using API.Extensions;
+using API.RequestHelpers;
 using Core.Entities;
 using Core.Entities.OrderAggregate;
 using Core.Interfaces;
@@ -12,18 +13,30 @@ namespace API.Controllers
     [Authorize]
     public class OrdersController(ICartService cartService, IUnitOfWork unit) : BaseApiController
     {
+        [InvalidateCache("api/products|")]
         [HttpPost]
         public async Task<ActionResult<Order>> CreateOreder(CreateOrderDto orderDto)
         {
             var email = User.GetEmail();
             var cart = await cartService.GetCartAsync(orderDto.cartId);
+
             if (cart == null) return BadRequest("Cart not found");
+
             if (cart.PaymentIntentId == null) return BadRequest("No payment intent for this order");
+
             var items = new List<OrderItem>();
+
             foreach (var item in cart.Items)
             {
                 var productItem = await unit.Repository<Product>().GetByIdAsync(item.ProductId);
                 if (productItem == null) return BadRequest("Problem with the order");
+                if (productItem.QuantityInStock < item.Quantity)
+                {
+                    return BadRequest($"Not enough stock for product {item.ProductName}. Available stock: {productItem.QuantityInStock}");
+                }
+
+                productItem.QuantityInStock -= item.Quantity;
+
                 var itemOrdered = new ProductItemOrdered
                 {
                     ProductId = item.ProductId,
@@ -37,6 +50,7 @@ namespace API.Controllers
                     Quantity = item.Quantity
                 };
                 items.Add(orderItem);
+                unit.Repository<Product>().Update(productItem);
             }
             var deliveryMethod = await unit.Repository<DeliveryMethod>().GetByIdAsync(orderDto.DeliveryMethodId);
             if (deliveryMethod == null) return BadRequest("No delivery method selected");
@@ -51,8 +65,29 @@ namespace API.Controllers
                 PaymentIntentId = cart.PaymentIntentId,
                 BuyerEmail = email
             };
-            unit.Repository<Order>().Add(order);
 
+            var spec = new OrderSpecification(cart.PaymentIntentId, true);
+
+            var existingOrder = await unit.Repository<Order>().GetEntityWithSpec(spec);
+
+            if (existingOrder != null)
+            {
+                existingOrder.OrderItems = order.OrderItems;
+                existingOrder.DeliveryMethod = order.DeliveryMethod;
+                existingOrder.ShippingAddress = order.ShippingAddress;
+                existingOrder.Subtotal = order.Subtotal;
+                existingOrder.Discount = order.Discount;
+                existingOrder.PaymentSummary = order.PaymentSummary;
+                existingOrder.BuyerEmail = order.BuyerEmail;
+
+                unit.Repository<Order>().Update(existingOrder);
+                order = existingOrder;
+            }
+            else
+            {
+                unit.Repository<Order>().Add(order);
+            }
+            
             if (await unit.Complete())
             {
                 return order;

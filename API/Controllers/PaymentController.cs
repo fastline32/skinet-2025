@@ -51,7 +51,8 @@ public class PaymentController(IPaymentService paymentService,
                 return BadRequest("Invalid event data");
             }
 
-            await HandlePaymentIntentSucceeded(intent);
+            if (intent.Status == "succeeded") await HandlePaymentIntentSucceeded(intent);
+            else await HandlePaymentIntentFailed(intent);
 
             return Ok();
         }
@@ -98,12 +99,35 @@ public class PaymentController(IPaymentService paymentService,
             }
         }
     }
+    
+    private async Task HandlePaymentIntentFailed(PaymentIntent intent)
+    {
+        // create spec for order with order items based on intent id
+        var spec = new OrderSpecification(intent.Id, true);
+
+        var order = await unit.Repository<Order>().GetEntityWithSpec(spec)
+            ?? throw new Exception("Order not found");
+
+        // update quantities for the products in stock based on the failed order
+        foreach (var item in order.OrderItems)
+        {
+            var productItem = await unit.Repository<Core.Entities.Product>()
+                .GetByIdAsync(item.ItemOrdered.ProductId)
+                    ?? throw new Exception("Problem updating order stock");
+
+            productItem.QuantityInStock += item.Quantity;
+        }
+
+        order.Status = OrderStatus.PaymentFailed;
+
+        await unit.Complete();
+    }
 
     private Event ConstructStripeEvent(string json)
     {
         try
         {
-            var result = EventUtility.ConstructEvent(json, Request.Headers["Stripe-Signature"], 
+            var result = EventUtility.ConstructEvent(json, Request.Headers["Stripe-Signature"],
                 _whSecret);
             return result;
         }

@@ -79,6 +79,30 @@ namespace API.Controllers
             return BadRequest("Problem deleting the product");
         }
 
+        [InvalidateCache("api/products|")]
+    [Authorize(Roles = "Admin")]
+    [HttpPut("update-stock/{productId}")]
+    public async Task<ActionResult> UpdateStock(int productId, [FromBody]int newQuantity)
+    {
+        var productItem = await unit.Repository<Product>().GetByIdAsync(productId);
+
+        if (productItem == null)
+        {
+            return NotFound("Product not found");
+        }
+
+        productItem.QuantityInStock = newQuantity;
+
+        unit.Repository<Product>().Update(productItem);
+
+        if (await unit.Complete())
+        {
+            return Ok();
+        }
+
+        return BadRequest("Problem updating stock");
+    }
+
         [Cache(10000)]
         [HttpGet("brands")]
         public async Task<ActionResult<IReadOnlyList<string>>> GetBrands()
